@@ -1,0 +1,245 @@
+# Machine Learning Project
+## Team memebers
+|Name|Email|
+| ---  | --- |
+|Xuekai Li     |          xuekai.li@stud.hslu.ch| 
+|Dmytro Rudyka          | dmytro.rudyka@stud.hslu.ch |
+|Sasa Ljubisavljevic  |   ljubisavljevic@stud.hslu.ch| 
+
+## Topic : Insurance Claim Prediction
+
+### Problem Statement
+A key challenge for the insurance industry is to charge each customer an appropriate premium for the risk they represent. The ability to predict a correct claim amount has a significant impact on insurer's management decisions and financial statements. Predicting the cost of claims in an insurance company is a real-life problem that needs to be solved in a more accurate and automated way. Several factors determine the cost of claims based on health factors like BMI, age, smoker, health conditions and others. Insurance companies apply numerous techniques for analyzing and predicting health insurance costs.
+
+
+### Data Definition
+data source:    https://www.kaggle.com/datasets/sureshgupta/health-insurance-data-set
+
+observation:    15000   rows
+
+predictors:     13      columns     
+
+| Dimension |  Explanation|
+| --- | --- |
+|age | Age of the policyholder (Numeric)|
+|sex| Gender of policyholder (Categoric)|
+|weight| Weight of the policyholder (Numeric)|
+|bmi| Body mass index, providing an understanding of body, weights that are relatively high or low relative to height, objective index of body weight (kg / m ^ 2) using the ratio of height to weight (Numeric)|
+|no_of_dependents| Number of dependent persons on the policyholder (Numeric)|
+|smoker| Indicates policyholder is a smoker or a non-smoker (non-smoker=0;smoker=1) (Categoric)|
+|claim| The amount claimed by the policyholder (Numeric)|
+|bloodpressure| Bloodpressure reading of policyholder (Numeric)|
+|diabetes|Indicates policyholder suffers from diabetes or not (non-diabetic=0; diabetic=1) (Categoric)|
+|regular_ex| A policyholder regularly excercises or not (no-excercise=0; excercise=1) (Categoric)|
+|job_title|Job profile of the policyholder (Categoric)|
+|city| The city in which the policyholder resides (Categoric)|
+|hereditary_diseases| A policyholder suffering from a hereditary diseases or not (Categoric)|
+
+
+## Analyse the data, train the model, analyse the prediction.
+We will using varias method to train the modals, and compare the model by analysing the RMSE. here is the method:
+* a Linear Model
+* a Generalised Linear Model with family set to Poisson 
+* a Generalised Linear Model with family set to Binomial 
+* a Generalised Additive Model
+* a Neural Network
+* a Support Vector Machine
+* solve an optimisation problem
+
+### 
+#### Load the packages
+```{r}
+library(tidyverse)
+library(caret)
+library(neuralnet)
+library(dplyr)
+```
+
+### Load the data
+```{r}
+df <- read_csv("healthinsurance.csv")
+# have look at the data
+summary(df)
+```
+
+### Prepare the data
+
+##### Clean the Null/NA record
+```{r}
+# check if the data have NA 
+summary(is.na(df))
+# clean the data
+df <- df %>% drop_na()
+summary(is.na(df))
+```
+
+
+#### now the df data have no 'NA' value. then check the numerical continuous variables if have outliers.
+age, weight, bmi, bloodpressure, claim is __numerical continuous variables__
+```{r}
+# check if all numerical data is valid.
+pairs(select(df,age,weight,bmi,bloodpressure,claim))
+
+```
+
+from the plot we know bloodpressure have 0 value which is outlier, then replace to mean values.
+```{r}
+# Replace 0 values in 'bloodpressure' column with mean of non-zero values
+df$bloodpressure[df$bloodpressure == 0] <- mean(df$bloodpressure[df$bloodpressure != 0])
+# now all the data have no outliers
+pairs(select(df,age,weight,bmi,bloodpressure,claim))
+
+```
+
+NOW, we could Prepare our data to train and test dataset.
+```{r}
+
+# prepare the data to train set and test set.
+
+set.seed(123)
+indexes <- createDataPartition(df$claim, p=.85, list = F)
+train <- df[indexes, ]
+test <- df[-indexes, ]
+
+
+```
+
+
+
+```{r}
+
+
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+
+
+```
+
+
+
+```{r}
+
+
+
+```
+
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+
