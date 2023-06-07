@@ -1,0 +1,378 @@
+---
+title: "Project insurance"
+subtitle: "Claim predictions for different purposes"
+author: "Dmytro Rudyka"
+date: "2023-06-09"
+output:
+  pdf_document: default
+  html_document: default
+
+
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, error=FALSE, warning=FALSE, include = F)
+setwd("~/Switchdrive/SyncVM/ML1/proj")
+library(ggplot2)
+library(car) #for vif
+library(multcomp) # for ghlv 
+```
+
+We came up with a scenario in which we, as data scientists, are approached by a real insurance company and asked to make a claim forecast for each of the company's clients, and several of them. There are different departments in the company and each of them has different, sometimes opposing goals and objectives. And the methods of solving them are different. In different sections we will describe such tasks and their solutions.
+
+
+
+## Reading dataset
+
+There are following data in dataset:
+
+...
+
+...
+
+...
+
+...
+
+...
+
+```{r upload}
+ins <- read.csv('ins.csv')
+str(ins)
+```
+
+```{r correction}
+
+ins$sex <- as.factor(ins$sex)
+ins$smoker <- as.factor(ins$smoker)
+ins$hereditary_diseases <- as.factor(ins$hereditary_diseases)
+ins$city <- as.factor(ins$city)
+ins$diabetes <- as.factor(ins$diabetes)
+ins$regular_ex <- as.factor(ins$regular_ex)
+ins$job_title <- as.factor(ins$job_title)
+```
+
+## REMOVE investigation 
+
+```{r}
+
+hist(log(ins$claim))
+
+```
+
+
+
+
+```{r checking}
+str(ins)
+```
+
+## Graphical investigation Plots
+
+### pairs with numeric variables
+
+```{r pairs}
+pairs(claim ~ age+weight+bmi+bloodpressure ,
+      data = ins,
+      pch = ".",
+      upper.panel = panel.smooth)
+```
+
+Age and if a person is a smoker
+
+```{r plots1, echo=FALSE}
+ggplot(ins, 
+       mapping = aes(x = age,
+                          y = claim,
+                          color = smoker)) +
+  geom_point() +
+  geom_smooth()
+```
+
+```{r plots2}
+ggplot(ins, 
+       mapping = aes(x = age,
+                     y = claim,
+                     color = smoker)) +
+  geom_point() +
+  geom_smooth() +
+  facet_wrap(. ~ smoker) 
+```
+
+# Linear model: Getting explainable model
+
+The CEO's task is to show the board a simple formula that can predict each client's claim. Accuracy in this task is not as important as understandability and explainability. The CEO wants to propose a new billing system and for that he needs transparency.
+
+## First simplest attempt, with just numerical age and BMI:
+
+```{r lm0}
+
+lm0 <-  
+  lm(claim ~ age + bmi, data = ins )
+
+summary(lm0)
+
+```
+
+Adding regular_ex, smoker, diabetes, as these preferences seem to be important for health.
+
+```{r lm1}
+
+lm1 <-  update(lm0, .~. + regular_ex + smoker + diabetes, data = ins )
+summary(lm1)
+
+```
+
+Checking if we need all the variables in this model conducting the consequent drop of each variable.
+
+```{r}
+
+drop1(lm1, test = 'F')
+```
+
+p-value small =\> all variables seem to play a role.
+
+Let's add weight, bloodpressure, job_title and hereditary_diseases
+
+```{r lm2, echo = T, include = F}
+lm2 <- update(lm1, .~. + weight + bloodpressure + job_title + hereditary_diseases)
+
+summary(lm2)
+```
+
+As we can see all the continues variables probably play a role, but categorical we will investigate later, because they complicate the model.
+
+```{r}
+drop1(lm2, test = 'F')
+```
+
+p-value small for all variables =\> all variables seem to play a role.
+
+But maybe not all diseases play a role. Then which of them?
+
+```{r boxplot}
+
+boxplot(claim ~ hereditary_diseases, data = ins)
+
+```
+
+Using tukey test to clarify that as well
+
+```{r tukey, echo=T, include=F}
+
+test.tukey <- glht(lm2,
+                      linfct = mcp(hereditary_diseases = "Tukey"))
+summary(test.tukey)
+
+#output is hided to save place
+```
+
+As we can see in output some differences between two diseases are not significant, but all differences between any of diseases and NoDisease are significant. So in order to simplify model why don't just use two factors for presence of disease.
+
+```{r}
+ins$has_disease = ifelse(ins$hereditary_diseases == "NoDisease", 0, 1)
+
+lm3 <- update(lm2, .~. - hereditary_diseases + has_disease )
+
+print(summary(lm3))
+```
+
+### Measure of effectiveness
+
+We decided to use RMSE as a main sign of "quality" of model since such approach will save money almost straightforwardly.
+
+Function for calculating and rounding of RMSE of model and calculation of RMSE of first 3 models
+
+```{r rmse-func, echo = T, inculde = T}
+rmse <- function(model){
+  round(sqrt(mean(model$residuals^2)),2)
+  }
+
+print(paste('RMSE of LM0',rmse(lm0)))
+print(paste('RMSE of LM1',rmse(lm1)))
+print(paste('RMSE of LM2',rmse(lm2)))
+
+```
+
+LM2 has the smallest RMSE for now.
+
+But is it necessary to have job_title as well, it has 35 different titles and and this complicates the model.
+
+```{r}
+lm4 <- update(lm3, .~. - job_title )
+
+print(summary(lm4))
+print(rmse(lm4))
+```
+
+So with this without job_title model we got almost the same result in terms of RMSE and R squared but much simpler model. So I would stick to this model to have most accurate among simplest and explainable models.
+
+## Investigation of other variables
+
+```{r eval=FALSE, include=FALSE}
+str(ins)
+
+```
+
+Let's add sex, city of living and number of dependents of current or potential customer:
+
+##test
+
+```{r lm5, message = F}
+
+lm5 <- update(lm4, .~. + sex + city + no_of_dependents)
+summary(lm5)
+
+# str(summary(lm5))
+# 
+# lm5 <- update(lm4, .~. + sex + city + no_of_dependents)
+# summary_lm5 <- summary(lm5)
+# 
+# # Show only the first 12 rows of the summary output
+# head(summary_lm5$table, 12)
+
+# coefficients <- coef(lm4)[1:9, c("Estimate", "Pr(>|t|)")]
+# coefficients
+# 
+# coef(lm4)
+
+```
+
+```{r}
+drop1(lm5, test = 'F')
+```
+
+```{r lm5 rmse, include = F}
+rmse(lm5)
+```
+
+We don't have significant evidence that gender plays a role. Then we can remove it. For some cities we also have small coefficients, and for the maximum difference they are also not very large. And the presence of this variable complicates the model and its description without giving much improvement in RMSE. So let's remove it too.
+
+```{r}
+lm6 <- update(lm5, .~. -sex -city)
+summary(lm6)
+```
+
+In this model we have bloodpressure with significant p-value but with relatively small estimate, to simplify this model we can remoe it as well.
+
+Weight and BMI are dependent by definition, so let's check it for collinearity:
+
+Checking for collinearity
+
+```{r}
+vif(lm6)
+
+```
+
+No large numbers therefore there are not explicit collinearity, but still since BMI contents the information of weight, let's remove it as well.
+
+```{r}
+lm7 <- update(lm6, .~. - weight - bloodpressure)
+summary(lm7)
+rmse(lm7)
+```
+
+```{r}
+summary(lm7)
+print(rmse(lm1))
+print(rmse(lm2))
+print(rmse(lm3))
+print(rmse(lm4))
+print(rmse(lm5))
+print(rmse(lm6))
+print(rmse(lm7))
+```
+
+The category variable about diseases and the city could have been left in the model for greater accuracy, but since simplicity is important in the scenario described, it was decided to stick with this model. The result is as follows: R squared = -0.76, which means that model explain 76% of all observations , RMSE = 5901
+
+The dependency in explicit way can be written as follows:
+
+```{r formula lm, echo = F}
+coefficients <- round(coef(lm7),0)
+
+
+print(paste("claim =", coefficients["(Intercept)"], "+",
+                          coefficients["age"], "* age +",
+                          coefficients["bmi"], "* bmi +",
+                          coefficients["regular_ex1"], "* regular_ex +",
+                          coefficients["smoker1"], "* smoker +",
+                          coefficients["diabetes1"], "* diabetes +",
+                          coefficients["has_disease"], "* has_disease +",
+                          coefficients["no_of_dependents"], "* no_of_dependents"))
+
+```
+
+And some of the coefficents can be explained as follows: if the customer of insurance company is smoker, their claim is almost 20K larger, and the one who does regular exercises claims almost 1300\$ less.
+
+## Non linearity
+
+### Non-Linearities: Developing a special product for smokers.
+
+Marketing department of the customer company ordered want to develop special offer for smokers. Our goal (Data scentist) is to predict the claim amount to help them set fair and profitable prices.
+
+```{r smoker graph, echo = F}
+smokers <- ins[ins$smoker == 1,]
+
+str(smokers)
+
+ggplot(smokers, 
+       mapping = aes(x = age,
+                     y = claim)) +
+  geom_point() +
+  geom_smooth()
+```
+
+We investigate the dependency between claim and age for smokers and it looks a bit similar to polynomial of third degree, we decided to check it.
+
+```{r smokers lm3, echo = F, include = T}
+
+clean_smokers <- na.omit(smokers)
+
+#str(clean_smokers)
+
+
+lm_smoker3 <-   lm(claim ~ bmi + regular_ex + diabetes + 
+                    weight + bloodpressure + has_disease + poly(age, degree = 3), 
+                  data = clean_smokers)
+
+#summary(lm_smoker3)
+
+p3 <- summary(lm_smoker3)$coefficients["poly(age, degree = 3)3", c("Pr(>|t|)")]
+
+print(paste('p-value for third degree: ', round(p3,2)))
+
+print(paste('RMSE of this model', rmse(lm_smoker3)))
+
+```
+
+After applying corresponding model we have quite weak evidences that we really need here 3rd. So lets try with 2.
+
+```{r}
+
+lm_smoker2 <-   lm(claim ~ bmi + regular_ex + diabetes + 
+                    weight + bloodpressure + has_disease + poly(age, degree = 2), 
+                  data = clean_smokers)
+#summary(lm_smoker2)
+p2 <- summary(lm_smoker2)$coefficients["poly(age, degree = 2)2", c("Pr(>|t|)")]
+print(paste('p-value for second degree: ', round(p2,2)))
+print(paste('RMSE of model with second degree of age: ', rmse(lm_smoker2)))
+```
+
+We have almost the same RMSE and quite solid evidence of suitability of this algorithm. So if the Marketing department of of our customer Insurance company want to have explicit explainable formula we can use this model.(Linear model with only first degree has been researched as well, it saved in code. It has larger RMSE, that is why second degree was chosen)
+
+```{r smoker degree, include = F, echo = F}
+drop1(lm_smoker2, test = 'F')
+
+lm_smoker1 <-   lm(claim ~ bmi + regular_ex + diabetes + 
+                    weight + bloodpressure + has_disease + age, 
+                  data = clean_smokers)
+
+summary(lm_smoker1)
+rmse(lm_smoker1)
+```
+
+```{r}
+
+
+
+```
